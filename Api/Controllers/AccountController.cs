@@ -1,10 +1,16 @@
 ﻿using Api.DTO.Account;
+using Api.DTOs.Account;
+using Api.Models;
 using Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Api.Controllers
@@ -16,6 +22,8 @@ namespace Api.Controllers
         private readonly JWTService _jWtService;
         private readonly SignInManager<Models.User> _signInManager;
         private readonly UserManager<Models.User> _userManager;
+        private readonly EmailService _emailService;
+        private readonly IConfiguration _config;
 
         //El UserManager es una clase concreta que administra al usuario.Esta clase crea,
         //actualiza y elimina usuarios.Tiene métodos para encontrar un usuario por ID de usuario, Nombre de usuario y correo electrónico.
@@ -25,11 +33,17 @@ namespace Api.Controllers
         //SignInManager es responsable de autenticar a un usuario, es decir, iniciar y cerrar sesión.
         //Emite la cookie de autenticación al usuario.
 
-        public AccountController(JWTService jWtService, SignInManager<Models.User> signInManager, UserManager<Models.User> userManager)
+        public AccountController(JWTService jWtService, 
+                                 SignInManager<Models.User> signInManager, 
+                                 UserManager<Models.User> userManager,
+                                 EmailService emailService,
+                                 IConfiguration config)
         {
-            _jWtService = jWtService;
+            _jWtService    = jWtService;
             _signInManager = signInManager;
-            _userManager = userManager;
+            _userManager   = userManager;
+            _emailService  = emailService;
+            _config        = config;
         }
 
         [Authorize]
@@ -71,7 +85,6 @@ namespace Api.Controllers
                 LastName       = model.LastName.ToLower(),
                 UserName       = model.Email.ToLower(),
                 Email          = model.Email.ToLower(),
-                EmailConfirmed = true
             };
 
             //Creamos el usuario 
@@ -81,11 +94,44 @@ namespace Api.Controllers
                 return BadRequest(result.Errors);
             }
 
-            return Ok("Su cuenta ha sido creada, ahora puede ingresar");
+            try
+            {
+                if (await SendConfirmEMailAsync(userToAdd))
+                {
+                    return Ok(new JsonResult(new { title = "Account Created", message = "Your account has been created, please confrim your email address" }));
+                }
+
+                return BadRequest("Failed to send email. Please contact admin");
+            }
+            catch (Exception)
+            {
+                return BadRequest("Failed to send email. Please contact admin");
+            }
+
+
+            //return Ok("Su cuenta ha sido creada, ahora puede ingresar");
         }
 
 
         #region Private Helper Methods
+
+        private async Task<bool> SendConfirmEMailAsync(User user)
+        {
+            //Creamos el Token
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            token     = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            var url   = $"{_config["JWT:ClientUrl"]}/{_config["Email:ConfirmEmailPath"]}?token={token}&email={user.Email}";
+
+            var body  = $"<p>Hello: {user.FirstName} {user.LastName}</p>" +
+                "<p>Please confirm your email address by clicking on the following link.</p>" +
+                $"<p><a href=\"{url}\">Click here</a></p>" +
+                "<p>Thank you,</p>" +
+                $"<br>{_config["Email:ApplicationName"]}";
+
+            var emailSend = new EmailSendDto(user.Email, "Confirm your email", body);
+
+            return await _emailService.SendEmailAsync(emailSend);
+        }
         private async Task<UserDto> CreateApplicationUserDto(Models.User user)
         {
             return new UserDto
