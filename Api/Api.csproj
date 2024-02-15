@@ -13,7 +13,7 @@
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.11" />
 	  <!--to be able to derive from IdentityDbContext inside our context.cs-->
 	  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="7.0.11" />
-	  <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.11" />
+
 	  <!--to be able to communicate with SQL server via EF-->
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.11" />
 	  <!--to be able to add/remove migration to our SQL server-->
@@ -25,12 +25,8 @@
 	  <!--to be able to create, serialize and validate JSON web tokens-->
 	  
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.15" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+ 
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
   </ItemGroup>
 
 </Project>
